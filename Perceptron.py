@@ -1,4 +1,6 @@
 import random as rand
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Perceptron:
@@ -29,6 +31,7 @@ class Perceptron:
         return [(x[-1], self.output(x)) for x in input_set]
 
     def teach(self, teaching_set, iterations):
+        print_set(teaching_set)
         for i in range(iterations):
             correct = 0
             for row in teaching_set:
@@ -41,6 +44,14 @@ class Perceptron:
             print("Efectiveness: " + str(correct/len(teaching_set)))
             if correct == len(teaching_set):
                 break
+            self.draw_function()
+
+    def draw_function(self):
+        [w0, w1, w2] = self.weights
+        a = -w1 / w2
+        b = -w0 / w2
+        x = np.arange(0, 1.1, 0.1)
+        plt.plot(x, a * x + b)
 
 
 def gen1():
@@ -52,9 +63,14 @@ def gen1():
 def take(n, gen):
     return list(next(gen) for _ in range(n))
 
+def print_set(t_set):
+    plt.plot([x for (x, y, z) in t_set if z is 1], [y for (x, y, z) in t_set if z is 1], 'go')
+    plt.plot([x for (x, y, z) in t_set if z is 0], [y for (x, y, z) in t_set if z is 0], 'ro')
+
 
 p1 = Perceptron(2)
-p1.show()
 
 teaching_set = take(300, gen1())
+plt.hold(True)
 p1.teach(teaching_set, 50)
+plt.show()
