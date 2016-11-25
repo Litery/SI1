@@ -5,14 +5,32 @@ import numpy as np
 
 class Neuron:
     def __init__(self, **kwargs):
-        self.weights = kwargs.get('weights', [])
-        self.inputs = kwargs.get('inputs', None)
+        self.weights = kwargs.get('weights', None)
+        self.new_weights = None
         self.outputs = None
+        self.__inputs = kwargs.get('inputs', None)
         self.last_output = None
-        self.bias = kwargs.get('bias', 8)
+        self.bias = kwargs.get('bias', 4)
         self.learn_rate = kwargs.get('learn_rate', 1)
-        for i in range(len(self.inputs) + 1):
-            self.weights.append(rand.random() * 2 - 1)
+        if self.weights is None:
+            self.weights = []
+            for i in range(len(self.inputs) + 1):
+                self.weights.append(rand.random())
+
+    @property
+    def inputs(self):
+        return self.__inputs
+
+    @inputs.setter
+    def inputs(self, inputs):
+        self.__inputs = inputs
+        self.reset()
+
+    def reset(self):
+        self.last_output = None
+        if self.outputs is not None:
+            for o in self.outputs:
+                o.reset()
 
     def show(self):
         for i in self.weights:
@@ -30,7 +48,7 @@ class Neuron:
         return self.last_output
 
     def get_weight(self, input):
-        return self.weights[self.inputs.index(input)]
+        return self.weights[self.inputs.index(input) + 1]
 
     def __mul__(self, other):
         return self.output() * other
@@ -39,7 +57,7 @@ class Neuron:
         return self.output() + other
 
     def delta(self, correct):
-        result = self.output() * (1 - self.output())
+        result = self.output() * (1 - self.output()) * self.bias
         if self.outputs is None:
             result *= correct - self.output()
         else:
@@ -51,8 +69,10 @@ class Neuron:
         for w, i in zip(self.weights, [1] + self.inputs):
             nw = w + i * self.learn_rate * self.delta(correct)
             new_weights.append(nw)
-        self.weights = new_weights
-        self.last_output = None
+        self.new_weights = new_weights
+
+    def remember(self):
+        self.weights = self.new_weights
 
 
 class Network:
@@ -79,12 +99,14 @@ class Network:
         return [n.output() for n in self.levels[-1]]
 
     def teach(self, row):
-        pass
+        for n in self.levels[0]:
+            n.inputs = row
 
 
-hidden = []
-for n in range(5):
-    hidden.append(Neuron(inputs=[1, 0]))
+
+hidden = [Neuron(inputs=[0, 0]),
+          Neuron(inputs=[0, 0]),
+          Neuron(inputs=[0, 0])]
 
 top = Neuron(inputs=hidden)
 
@@ -102,6 +124,10 @@ for i in range(1000):
     for n in hidden:
         n.teach(0)
 
+    top.remember()
+    for n in hidden:
+        n.remember()
+
     for n in hidden:
         n.inputs = [1, 0]
 
@@ -110,6 +136,10 @@ for i in range(1000):
     top.teach(1)
     for n in hidden:
         n.teach(1)
+
+    top.remember()
+    for n in hidden:
+        n.remember()
 
     for n in hidden:
         n.inputs = [1, 1]
@@ -120,6 +150,10 @@ for i in range(1000):
     for n in hidden:
         n.teach(0)
 
+    top.remember()
+    for n in hidden:
+        n.remember()
+
     for n in hidden:
         n.inputs = [0, 1]
 
@@ -128,3 +162,12 @@ for i in range(1000):
     top.teach(1)
     for n in hidden:
         n.teach(1)
+
+    top.remember()
+    for n in hidden:
+        n.remember()
+
+for n in hidden:
+    print(n.weights)
+print()
+print(top.weights)
