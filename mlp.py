@@ -6,16 +6,17 @@ import numpy as np
 class Neuron:
     def __init__(self, **kwargs):
         self.weights = kwargs.get('weights', None)
-        self.new_weights = None
         self.outputs = None
         self.__inputs = kwargs.get('inputs', None)
         self.last_output = None
+        self.last_delta = None
         self.bias = kwargs.get('bias', 4)
         self.learn_rate = kwargs.get('learn_rate', 1)
         if self.weights is None:
             self.weights = []
             for i in range(len(self.inputs) + 1):
                 self.weights.append(rand.random())
+        self.delta_weights = np.zeros(len(self.weights))
 
     @property
     def inputs(self):
@@ -28,6 +29,7 @@ class Neuron:
 
     def reset(self):
         self.last_output = None
+        self.last_delta = None
         if self.outputs is not None:
             for o in self.outputs:
                 o.reset()
@@ -47,8 +49,8 @@ class Neuron:
             self.last_output = 1 / (1 + math.exp(-self.net() * self.bias))
         return self.last_output
 
-    def get_weight(self, input):
-        return self.weights[self.inputs.index(input) + 1]
+    def get_weight(self, neuron):
+        return self.weights[self.inputs.index(neuron) + 1]
 
     def __mul__(self, other):
         return self.output() * other
@@ -56,23 +58,26 @@ class Neuron:
     def __add__(self, other):
         return self.output() + other
 
-    def delta(self, correct):
-        result = self.output() * (1 - self.output()) * self.bias
-        if self.outputs is None:
-            result *= correct - self.output()
-        else:
-            result *= sum([o.get_weight(self) * o.delta(correct) for o in self.outputs])
-        return result
+    def delta(self, correct=None):
+        if self.last_delta is None:
+            result = self.output() * (1 - self.output()) * self.bias
+            if self.outputs is None:
+                result *= correct - self.output()
+            else:
+                result *= sum([o.get_weight(self) * o.delta() for o in self.outputs])
+            self.last_delta = result
+        return self.last_delta
 
     def teach(self, correct):
-        new_weights = []
-        for w, i in zip(self.weights, [1] + self.inputs):
-            nw = w + i * self.learn_rate * self.delta(correct)
-            new_weights.append(nw)
-        self.new_weights = new_weights
+        new_deltas = []
+        for i in [1] + self.inputs:
+            dw = i * self.learn_rate * self.delta(correct)
+            new_deltas.append(dw)
+        self.delta_weights = [dw + nd for dw, nd in zip(self.delta_weights, new_deltas)]
 
-    def remember(self):
-        self.weights = self.new_weights
+    def remember_epoch(self, epoch_size=1):
+        self.weights = [w + dw/epoch_size for w, dw in zip(self.weights, self.delta_weights)]
+        self.delta_weights = np.zeros(len(self.weights))
 
 
 class Network:
@@ -98,10 +103,12 @@ class Network:
     def output(self):
         return [n.output() for n in self.levels[-1]]
 
-    def teach(self, row):
+    def teach_row(self, input_row, expected):
         for n in self.levels[0]:
-            n.inputs = row
-
+            n.inputs = input_row
+        for level in self.levels:
+            for neuron in level:
+                neuron.teach(expected)
 
 
 hidden = [Neuron(inputs=[0, 0]),
@@ -124,10 +131,6 @@ for i in range(1000):
     for n in hidden:
         n.teach(0)
 
-    top.remember()
-    for n in hidden:
-        n.remember()
-
     for n in hidden:
         n.inputs = [1, 0]
 
@@ -136,10 +139,6 @@ for i in range(1000):
     top.teach(1)
     for n in hidden:
         n.teach(1)
-
-    top.remember()
-    for n in hidden:
-        n.remember()
 
     for n in hidden:
         n.inputs = [1, 1]
@@ -150,10 +149,6 @@ for i in range(1000):
     for n in hidden:
         n.teach(0)
 
-    top.remember()
-    for n in hidden:
-        n.remember()
-
     for n in hidden:
         n.inputs = [0, 1]
 
@@ -163,9 +158,9 @@ for i in range(1000):
     for n in hidden:
         n.teach(1)
 
-    top.remember()
+    top.remember_epoch(4)
     for n in hidden:
-        n.remember()
+        n.remember_epoch(4)
 
 for n in hidden:
     print(n.weights)
