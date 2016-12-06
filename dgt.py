@@ -1,8 +1,9 @@
 import glob
 import os
-import numpy as np
 
 from PIL import Image
+
+import mlp
 
 
 def make_teaching_set(path):
@@ -19,4 +20,22 @@ def make_teaching_set(path):
         t_set[expected].append(pixels)
     return t_set
 
-make_teaching_set('/Users/szymon/Downloads/Sieci Neuronowe/')
+
+def teach_network():
+    net = mlp.Network(2, [40, 10], 70)
+    t_dict = make_teaching_set('/Users/szymon/Downloads/Sieci Neuronowe/')
+    t_set = []
+    v_set = []
+    for (key, value) in t_dict.items():
+        expected = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        expected[key] = 1
+        for x in value[:int(0.8 * len(value))]:
+            t_set.append((x, expected))
+        for x in value[int(0.8 * len(value)):]:
+            v_set.append((x, expected))
+    print(t_set)
+
+    net.teach(t_set, v_set, None, 50, 100)
+
+
+teach_network()
