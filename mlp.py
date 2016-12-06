@@ -106,6 +106,17 @@ class Network:
             self.set_input(new_input)
         return [n.output() for n in self.levels[-1]]
 
+    def effectiveness(self, teaching_set):
+        result = 0
+        for (row, exp) in teaching_set:
+            result += sum([(o - y) ** 2 for o, y in zip(self.output(row), exp)]) / len(exp)
+            # my_list = self.output(row)
+            # max_value = max(my_list)
+            # max_index = my_list.index(max_value)
+            # if exp[max_index] == 1:
+            #     result += 1
+        return 1 - result/len(teaching_set)
+
     def top_down_iter(self):
         for level in reversed(self.levels):
             for neuron in level:
@@ -117,8 +128,10 @@ class Network:
 
     def teach_row(self, input_row, expected):
         self.set_input(input_row)
-        for n in self.top_down_iter():
-            n.teach(expected)
+        for n, e in zip(self.levels[-1], expected):
+            n.teach(e)
+        for n in self.levels[0]:
+            n.teach(None)
 
     def teach_epoch(self, teaching_epoch):
         for input_row, expected in teaching_epoch:
@@ -126,11 +139,13 @@ class Network:
         for n in self.top_down_iter():
             n.remember_epoch(epoch_size=len(teaching_epoch))
 
-    def teach(self, teaching_set, batch_size, max_iter=1000):
+    def teach(self, teaching_set, validating_set, test_set, batch_size, max_iter=1000):
         for i in range(max_iter):
             rand.shuffle(teaching_set)
             for batch in [teaching_set[i:i + batch_size] for i in range(0, len(teaching_set), batch_size)]:
                 self.teach_epoch(batch)
+            print(str(i) + ' tset ' + str(self.effectiveness(teaching_set)))
+            print(str(i) + ' vset ' + str(self.effectiveness(validating_set)))
 
 
 def teaching_script():
@@ -192,14 +207,12 @@ def teaching_script():
 
 
 def teaching_test_xor():
-    t_set = [([0, 0], 0), ([1, 1], 0), ([0, 1], 1), ([1, 0], 1)]
+    t_set = [([0, 0], [0]), ([1, 1], [0]), ([0, 1], [1]), ([1, 0], [1])]
     net = Network(2, [3, 1], 2)
-    net.teach(t_set, 4, 1000)
+    net.teach(t_set, t_set, None, 4)
     # print(net.output([0, 0]))
     # print(net.output([1, 1]))
     # print(net.output([0, 1]))
     # print(net.output([1, 0]))
     return (net.output([0, 0])[0] + net.output([1, 1])[0] < 0.2) and (
         net.output([1, 0])[0] + net.output([0, 1])[0] > 1.85)
-
-
