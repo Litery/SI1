@@ -14,9 +14,10 @@ class Neuron:
                 self.weights.append(rand.random() * 2 - 1)
 
     def output(self, input_row):
-        # result = sum(np.multiply([1] + input_row, self.weights))
         result = 0
-        for (x, w) in zip([1] + input_row, self.weights):
+        # result = sum(np.multiply([1] + input_row, self.weights))
+        # result = sum([x * w for x, w in zip([1] + input_row, self.weights)])
+        for x, w in zip([1] + input_row, self.weights):
             result += x * w
         return 1 / (1 + math.exp(-result * self.bias))
 
@@ -29,11 +30,7 @@ class Neuron:
         return result
 
     def teach(self, input_row, delta, t_step):
-        delta_weights = []
-        for i in [1] + input_row:
-            dw = i * t_step * delta
-            delta_weights.append(dw)
-        return delta_weights
+        return [i * t_step * delta for i in [1] + input_row]
 
 
 class Layer:
