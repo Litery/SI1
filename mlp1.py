@@ -14,13 +14,13 @@ class Neuron:
                 self.weights.append(rand.random() * 2 - 1)
 
     def output(self, input_row):
+        # result = sum(np.multiply([1] + input_row, self.weights))
         result = 0
         for (x, w) in zip([1] + input_row, self.weights):
             result += x * w
         return 1 / (1 + math.exp(-result * self.bias))
 
-    def delta(self, input_row, output_weights, output_deltas, desired_output):
-        output = self.output(input_row)
+    def delta(self, output_weights, output_deltas, desired_output, output):
         result = output * (1 - output) * self.bias
         if desired_output is not None:
             result *= desired_output - output
@@ -57,12 +57,13 @@ class Layer:
         output_weights = kwargs.get('output_weights', None)
         output_deltas = kwargs.get('output_deltas', None)
         desired_output = kwargs.get('desired_output', None)
+        calc_output = kwargs.get('calc_output', None)
         if desired_output is None:
-            result = [n.delta(self.inputs, weights, output_deltas, None) for n, weights
-                     in zip(self.neurons, output_weights)]
+            result = [n.delta(weights, output_deltas, None, output) for n, weights, output
+                     in zip(self.neurons, output_weights, calc_output)]
         else:
-            result = [n.delta(self.inputs, None, None, desired) for n, desired
-                      in zip(self.neurons, desired_output)]
+            result = [n.delta(None, None, desired, output) for n, desired, output
+                      in zip(self.neurons, desired_output, calc_output)]
         return result
 
     def teach_row(self, deltas, t_step):
@@ -82,6 +83,14 @@ class Network:
             input_row = l.output()
         return input_row
 
+    def full_output(self, input_row):
+        self.layers[0].inputs = input_row
+        result = [self.layers[0].output()]
+        for l in self.layers[1:]:
+            l.inputs = result[-1]
+            result.append(l.output())
+        return result
+
     def effectiveness(self, test_set):
         result = 0
         for (row, exp) in test_set:
@@ -90,41 +99,37 @@ class Network:
             max_value = max(my_list)
             max_index = my_list.index(max_value)
             if exp[max_index] == 1:
-                 result += 1
+                result += 1
         # return 1 - result / len(test_set)
         return result / len(test_set)
 
     def teach_row(self, input_row, desired_output, t_step):
-        output = self.output(input_row)
+        full_output = self.full_output(input_row)
         weights = self.layers[-1].weights_for_inputs()
-        deltas = self.layers[-1].deltas(desired_output=desired_output)
+        deltas = self.layers[-1].deltas(desired_output=desired_output, calc_output=full_output[-1])
         delta_weights = [self.layers[-1].teach_row(deltas, t_step)]
-        for l in reversed(self.layers[:-1]):
-            deltas = l.deltas(output_weights=weights, output_deltas=deltas)
+        for l, out in zip(reversed(self.layers[:-1]), reversed(full_output[:-1])):
+            deltas = l.deltas(output_weights=weights, output_deltas=deltas, calc_output=out)
             delta_weights.append(l.teach_row(deltas, t_step))
             weights = l.weights_for_inputs()
-        return delta_weights, sum([math.fabs(o - y) for o, y in zip(output, desired_output)]) / len(desired_output)
+        return delta_weights
 
     def teach_batch(self, t_batch, t_step):
-        delta_weights, error = self.teach_row(t_batch[0][0], t_batch[0][1], t_step)
+        delta_weights = self.teach_row(t_batch[0][0], t_batch[0][1], t_step)
         for row in t_batch[1:]:
-            new_dw, e = self.teach_row(row[0], row[1], t_step)
-            error += e
+            new_dw = self.teach_row(row[0], row[1], t_step)
             delta_weights = [np.add(dw1, dw2) for dw1, dw2 in zip(delta_weights, new_dw)]
         delta_weights = [np.divide(dw, len(t_batch)) for dw in delta_weights]
         for l, w in zip(self.layers, delta_weights[::-1]):
             l.mod_weights(w)
-        return error/len(t_batch)
 
     def teach(self, teaching_set, validating_set, batch_size, t_step, max_iter=1000):
         for i in range(max_iter):
             rand.shuffle(teaching_set)
-            error = 0
             batch_num = 0
             for batch in [teaching_set[i:i + batch_size] for i in range(0, len(teaching_set), batch_size)]:
-                error += self.teach_batch(batch, t_step)
+                self.teach_batch(batch, t_step)
                 batch_num += 1
-            error = 1 - error / batch_num
             print(str(i) + ' tset ' + str(self.effectiveness(teaching_set)))
             print(str(i) + ' vset ' + str(self.effectiveness(validating_set)))
 
