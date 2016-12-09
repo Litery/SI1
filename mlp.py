@@ -15,7 +15,7 @@ class Neuron:
         if self.weights is None:
             self.weights = []
             for i in range(len(self.inputs) + 1):
-                self.weights.append(rand.random())
+                self.weights.append(rand.random() * 2 - 1)
         self.delta_weights = np.zeros(len(self.weights))
 
     @property

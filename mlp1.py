@@ -1,7 +1,6 @@
 import random as rand
 import math
 import numpy as np
-from operator import add
 
 
 class Neuron:
@@ -12,7 +11,7 @@ class Neuron:
         if self.weights is None:
             self.weights = []
             for i in range(input_num + 1):
-                self.weights.append(rand.random())
+                self.weights.append(rand.random() * 2 - 1)
 
     def output(self, input_row):
         result = 0
@@ -86,8 +85,14 @@ class Network:
     def effectiveness(self, test_set):
         result = 0
         for (row, exp) in test_set:
-            result += sum([(o - y) ** 2 for o, y in zip(self.output(row), exp)]) / len(exp)
-        return 1 - result / len(test_set)
+            # result += sum([math.fabs(o - y) for o, y in zip(self.output(row), exp)]) / len(exp)
+            my_list = self.output(row)
+            max_value = max(my_list)
+            max_index = my_list.index(max_value)
+            if exp[max_index] == 1:
+                 result += 1
+        # return 1 - result / len(test_set)
+        return result / len(test_set)
 
     def teach_row(self, input_row, desired_output, t_step):
         output = self.output(input_row)
@@ -98,7 +103,7 @@ class Network:
             deltas = l.deltas(output_weights=weights, output_deltas=deltas)
             delta_weights.append(l.teach_row(deltas, t_step))
             weights = l.weights_for_inputs()
-        return delta_weights, sum([(o - y) ** 2 for o, y in zip(output, desired_output)]) / len(desired_output)
+        return delta_weights, sum([math.fabs(o - y) for o, y in zip(output, desired_output)]) / len(desired_output)
 
     def teach_batch(self, t_batch, t_step):
         delta_weights, error = self.teach_row(t_batch[0][0], t_batch[0][1], t_step)
@@ -120,7 +125,7 @@ class Network:
                 error += self.teach_batch(batch, t_step)
                 batch_num += 1
             error = 1 - error / batch_num
-            print(str(i) + ' tset ' + str(error))
+            print(str(i) + ' tset ' + str(self.effectiveness(teaching_set)))
             print(str(i) + ' vset ' + str(self.effectiveness(validating_set)))
 
 
@@ -157,5 +162,3 @@ def test4():
     print(net.output([1, 1]))
     print(net.output([0, 1]))
     print(net.output([1, 0]))
-
-test4()
