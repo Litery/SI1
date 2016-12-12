@@ -6,7 +6,7 @@ import numpy as np
 class Neuron:
     def __init__(self, **kwargs):
         self.weights = kwargs.get('weights', None)
-        self.bias = kwargs.get('bias', 2)
+        self.bias = kwargs.get('bias', 1)
         input_num = kwargs.get('input_num', 2)
         if self.weights is None:
             self.weights = []
@@ -49,6 +49,9 @@ class Layer:
     def mod_weights(self, delta_weights):
         for n, dw in zip(self.neurons, delta_weights):
             n.weights = np.add(n.weights, dw)
+
+    def get_weights(self):
+        return [n.weights for n in self.neurons]
 
     def deltas(self, **kwargs):
         output_weights = kwargs.get('output_weights', None)
