@@ -24,8 +24,8 @@ def make_teaching_set(path):
 
 def teach_network(width, t_step, batch_size, momentum, t_iter, log=True):
     net = mlp2.Network(width, 70, momentum=momentum)
-    # t_dict = make_teaching_set('/Users/szymon/Downloads/Sieci Neuronowe/')
-    t_dict = make_teaching_set('C:/Users/Szon/Documents/Sieci Neuronowe')
+    t_dict = make_teaching_set('/Users/szymon/Downloads/Sieci Neuronowe/')
+    # t_dict = make_teaching_set('C:/Users/Szon/Documents/Sieci Neuronowe')
     t_set = []
     v_set = []
     for (key, value) in t_dict.items():
@@ -35,27 +35,30 @@ def teach_network(width, t_step, batch_size, momentum, t_iter, log=True):
             t_set.append((x, expected))
         for x in value[int(0.85 * len(value)):]:
             v_set.append((x, expected))
-    return net.teach(t_set, v_set, batch_size, t_step, t_iter, log_live=log)
+    net.teach(t_set, v_set, batch_size, t_step, t_iter, log_live=log)
+    return net, v_set
 
 
 def teach_network_mean(width, t_step, batch_size, momentum, t_iter, sample_size):
     result = 0
     for i in range(sample_size):
-        result += teach_network(width, t_step, batch_size, momentum, t_iter)[1]
+        net, v_set = teach_network(width, t_step, batch_size, momentum, t_iter)[0]
+        result += net.effectiveness(v_set)
     return result / sample_size
 
 
 def teach_with_auto_mean(sample_size):
     result = 0
     for i in range(sample_size):
-        result += teach_network_with_auto(True)
+        net, v_set = teach_network_with_auto(True)
+        result += net.effectiveness(v_set)
     return result / sample_size
 
 
 def teach_auto_encoder(width, t_step, batch_size, max_iter):
     net = mlp2.Network(width, 70, mse=True, momentum=0.2)
-    # t_dict = make_teaching_set('/Users/szymon/Downloads/Sieci Neuronowe/')
-    t_dict = make_teaching_set('C:/Users/Szon/Documents/Sieci Neuronowe')
+    t_dict = make_teaching_set('/Users/szymon/Downloads/Sieci Neuronowe/')
+    # t_dict = make_teaching_set('C:/Users/Szon/Documents/Sieci Neuronowe')
     t_set = []
     v_set = []
     for (key, value) in t_dict.items():
@@ -88,8 +91,8 @@ def show_images(pixels1, pixels2):
     im.show()
 
 
-def show_auto_encoder():
-    net, v_set = teach_auto_encoder([35, 70], 0.6, 70, 300)
+def show_auto_encoder(hidden):
+    net, v_set = teach_auto_encoder([hidden, 70], 0.7, 70, 500)
     rand.shuffle(v_set)
     for x in v_set:
         pixels = net.output(x[0])
@@ -105,6 +108,16 @@ def show_auto_encoder():
         print(pixels)
         show_image((most_active[1:] + pixels * 0.5) / 1.5)
         if 'end' == input():
+            break
+
+
+def show_network():
+    net, v_set = teach_network([30, 10], 0.6, 60, 0.1, 600)
+    rand.shuffle(v_set)
+    for x in v_set:
+        result = net.output(x[0])
+        show_image(x[0])
+        if 'end' == input(str(mlp2.max_index(result))):
             break
 
 
@@ -146,7 +159,7 @@ def teach_network_with_auto(log):
     net.teach(t_set, v_set, 60, 0.8, 500, ignore_bottom=1, log_live=log)
     print('Full teaching')
     net.teach(t_set, v_set, 60, 0.6, log_live=log)
-    return net.effectiveness(v_set)
+    return net, v_set
 
 
 def test_hyper_par(output, t_iter, sample_size, width_range, batch_range, t_step_range, momentum_range):
@@ -177,5 +190,6 @@ def get_hyper_results(t_iter, sample_size):
 # get_hyper_results(600, 4)
 # print(teach_with_auto_mean(10))
 # teach_auto_encoder([30, 70], 0.6, 60, 400)
-show_auto_encoder()
+show_auto_encoder(10)
 # teach_network([35, 10], 0.6, 60, 0.1, 500)
+# show_auto_encoder()
